@@ -186,38 +186,45 @@ std::vector<std::string> Map::bestfs(std::string start, std::string end) {
 
 std::vector<std::string> Map::astar(std::string start, std::string end) {
     std::unordered_map<std::string, std::string> openPaths;
-    std::unordered_map<std::string, std::string> closed;
-    std::unordered_map<std::string, double> homeDistance;
+    std::unordered_map<std::string, std::string> closedPaths;
+    std::unordered_map<std::string, double> distanceFromStart;
     std::vector<std::string> path;
-    CityQueue open(cities, end);
+    CityQueue openPriority(cities, end);
 
-    open.push(start);
+    // Add start node to open lists
+    openPriority.push(start);
     openPaths[start] = "";
-    homeDistance[start] = 0;
+    distanceFromStart[start] = 0;
 
-    while (!open.empty()) {
-        std::string next = open.pop_back().name;
-        closed[next] = openPaths[next];
+    while (!openPriority.empty()) {
+        // Pop the highest priority element off as the next node to search
+        std::string next = openPriority.pop_back().name;
+        // This node will be fully explored, so it can be closed
+        closedPaths[next] = openPaths[next];
         openPaths.erase(next);
 
+        // Check if the node is the end node
         if (next == end)
-            return getPath(closed, end);
+            return getPath(closedPaths, end);
 
         for (std::string s : cities[next].adj) {
-            if (closed.count(s))
+            if (closedPaths.count(s))
                 continue;
 
-            double distStart = homeDistance[next] + cities[s].distanceTo(cities[next]);
+            // Calculate the actual distance from the start node
+            double distStart = distanceFromStart[next] + cities[s].distanceTo(cities[next]);
+            // If the node has not been opened, add it to all open lists
             if (!openPaths.count(s)) {
                 openPaths[s] = next;
-                homeDistance[s] = distStart;
-                open.push(s, distStart);
+                distanceFromStart[s] = distStart;
+                openPriority.push(s, distStart);
             }
-            else if (distStart < homeDistance[s]) {
+            // If the node has been discovered, check if the new path is more optimal
+            else if (distStart < distanceFromStart[s]) {
                 openPaths[s] = next;
-                homeDistance[s] = distStart;
-                open.remove(s);
-                open.push(s, distStart);
+                distanceFromStart[s] = distStart;
+                openPriority.remove(s);
+                openPriority.push(s, distStart);
             }
         }
     }
