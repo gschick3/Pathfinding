@@ -28,36 +28,33 @@ Map::Map(std::string adj, std::string coord) {
     }
 }
 
-std::vector<std::string> Map::bfs(std::string start, std::string end) {
+std::vector<std::string> Map::bfs(std::string start, std::string end) const {
     if (!cities.count(start) || !cities.count(end))
         return {};
 
-    // All paths towards start node; nodes will be added as keys when they are visited
-    std::unordered_map<std::string, std::string> paths;
+    std::unordered_map<std::string, std::string> visitedPaths;
     // Queue of not-yet-visited nodes
-    std::queue<std::string> q;
+    std::queue<std::string> unvistitedQueue;
 
     // Add the start node to the queue and mark as visited
-    q.push(start);
-    paths[start] = std::string();
-
-    std::string next;
+    unvistitedQueue.push(start);
+    visitedPaths[start] = std::string();
 
     // Loop until all paths have been searched
-    while (!q.empty()) {
+    while (!unvistitedQueue.empty()) {
         // Choose next node to search
-        next = q.front();
-        q.pop();
+        std::string current = unvistitedQueue.front();
+        unvistitedQueue.pop();
 
-        if (next == end)
-            return getPath(paths, end);
+        if (current == end)
+            return getPath(visitedPaths, end);
 
         // Discover all connected nodes
-        for (std::string s : cities[next].adj) {
+        for (const std::string& neighbor : cities.at(current).adj) {
             // Mark each node as visited and add to queue
-            if (!paths.count(s)) {
-                paths[s] = next; // Point node towards source
-                q.push(s);
+            if (!visitedPaths.count(neighbor)) {
+                visitedPaths[neighbor] = current; // Point node towards source
+                unvistitedQueue.push(neighbor);
             }
         }
     }
@@ -65,36 +62,34 @@ std::vector<std::string> Map::bfs(std::string start, std::string end) {
     return {};
 }
 
-std::vector<std::string> Map::dfs(std::string start, std::string end) {
+std::vector<std::string> Map::dfs(std::string start, std::string end) const {
     if (!cities.count(start) || !cities.count(end))
         return {};
 
     // All paths towards start node; nodes will be added as keys when they are visited
-    std::unordered_map<std::string, std::string> paths;
+    std::unordered_map<std::string, std::string> visitedPaths;
     // Stack of not-yet-visited nodes
-    std::stack<std::string> stack;
+    std::stack<std::string> unvisitedStack;
 
     // Add the start node to the stack and mark as visited
-    stack.push(start);
-    paths[start] = std::string();
-
-    std::string next;
+    unvisitedStack.push(start);
+    visitedPaths[start] = std::string();
 
     // Loop until all paths have been searched
-    while (!stack.empty()) {
+    while (!unvisitedStack.empty()) {
         // Choose next node to search
-        next = stack.top();
-        stack.pop();
+        std::string current = unvisitedStack.top();
+        unvisitedStack.pop();
 
-        if (next == end)
-            return getPath(paths, end);
+        if (current == end)
+            return getPath(visitedPaths, end);
 
         // Discover all connected nodes
-        for (std::string s : cities[next].adj) {
+        for (const std::string& neighbor : cities.at(current).adj) {
             // Mark each node as visited and add to stack
-            if (!paths.count(s)) {
-                paths[s] = next; // Point node towards source
-                stack.push(s);
+            if (!visitedPaths.count(neighbor)) {
+                visitedPaths[neighbor] = current; // Point node towards source
+                unvisitedStack.push(neighbor);
             }
         }
     }
@@ -102,20 +97,22 @@ std::vector<std::string> Map::dfs(std::string start, std::string end) {
     return {};
 }
 
-std::vector<std::string> Map::iddfs(std::string start, std::string end) {
+std::vector<std::string> Map::iddfs(std::string start, std::string end) const {
     if (!cities.count(start) || !cities.count(end))
         return {};
 
     int maxDepth = 0;
-    while (true) {
-        std::unordered_map<std::string, std::string> paths;
-        paths[start] = "";
 
-        std::vector<std::string> path = ddfs(start, end, maxDepth, paths);
+    // Loop until path is found or until integer limit is reached
+    while (maxDepth < INT_MAX) {
+        std::unordered_map<std::string, std::string> visitedPaths;
+        visitedPaths[start] = "";
 
-        if (!path.empty()) {
+        std::vector<std::string> path = ddfs(start, end, maxDepth, visitedPaths);
+
+        if (!path.empty())
             return path; // Shortest path found
-        }
+
         maxDepth++; // Increase depth limit
     }
 
@@ -123,28 +120,15 @@ std::vector<std::string> Map::iddfs(std::string start, std::string end) {
 }
 
 std::vector<std::string> Map::ddfs(const std::string current, const std::string end,
-    int depth, std::unordered_map<std::string, std::string> paths) {
-    if (current == end) {
-        for (auto pair : paths) {
-            std::cout << pair.second << "->" << pair.first << std::endl;
-        }
-        // Found the destination city, reconstruct and return the path
-        std::vector<std::string> result;
-        result.push_back(end);
-        std::string node = end;
-        while (paths.count(paths[node])) {
-            node = paths[node];
-            result.push_back(node);
-        }
-        std::reverse(result.begin(), result.end());
-        return result;
-    }
+    int depth, std::unordered_map<std::string, std::string> paths) const {
+    if (current == end)
+        return getPath(paths, end);
 
     if (depth <= 0)
         return {}; // Reached depth limit, no path found at this depth
 
     // Check out all adjacent unvisited nodes at the current node
-    for (const std::string neighbor : cities[current].adj) {
+    for (const std::string& neighbor : cities.at(current).adj) {
         if (!paths.count(neighbor)) {
             paths[neighbor] = current;
             std::vector<std::string> path = ddfs(neighbor, end, depth - 1, paths);
@@ -153,30 +137,31 @@ std::vector<std::string> Map::ddfs(const std::string current, const std::string 
         }
     }
 
-    paths.erase(current);
     return {}; // No path found at this depth
 }
 
-std::vector<std::string> Map::bestfs(std::string start, std::string end) {
+std::vector<std::string> Map::bestfs(std::string start, std::string end) const {
     std::unordered_map<std::string, std::string> paths;
     std::unordered_map<std::string, double> homeDistance;
     std::vector<std::string> path;
-    CityQueue open(cities, end);
+    min_priority_queue<CityQueueItem> open;
 
-    open.push(start);
+    CityQueueItem startItem(start, cities.at(start), getHeuristic(start, end));
+    open.push(startItem);
     paths[start] = std::string();
 
     while (!open.empty()) {
-        std::string next = open.pop_back().name;
+        std::string current = open.top().name;
+        open.pop();
 
-        if (next == end)
+        if (current == end)
             return getPath(paths, end);
 
-        for (std::string s : cities[next].adj) {
-            if (!paths.count(s)) {
-                paths[s] = next;
-                homeDistance[s] = homeDistance[next] + cities[s].distanceTo(cities[next]);
-                open.push(s, homeDistance[s]);
+        for (const std::string& neighbor : cities.at(current).adj) {
+            if (!paths.count(neighbor)) {
+                paths[neighbor] = current;
+                homeDistance[neighbor] = homeDistance[current] + cities.at(neighbor).distanceTo(cities.at(current));
+                open.push(CityQueueItem(neighbor, cities.at(neighbor), homeDistance[neighbor] + getHeuristic(neighbor ,end)));
             }
         }
     }
@@ -184,136 +169,91 @@ std::vector<std::string> Map::bestfs(std::string start, std::string end) {
     return {};
 }
 
-std::vector<std::string> Map::astar(std::string start, std::string end) {
+
+std::vector<std::string> Map::astar(std::string start, std::string end) const {
     std::unordered_map<std::string, std::string> openPaths;
     std::unordered_map<std::string, std::string> closedPaths;
     std::unordered_map<std::string, double> distanceFromStart;
     std::vector<std::string> path;
-    CityQueue openPriority(cities, end);
+    min_priority_queue<CityQueueItem> openPriority;
 
     // Add start node to open lists
-    openPriority.push(start);
+    openPriority.push(CityQueueItem(start, cities.at(start), getHeuristic(start, end)));
     openPaths[start] = "";
     distanceFromStart[start] = 0;
 
     while (!openPriority.empty()) {
         // Pop the highest priority element off as the next node to search
-        std::string next = openPriority.pop_back().name;
-        // This node will be fully explored, so it can be closed
-        closedPaths[next] = openPaths[next];
-        openPaths.erase(next);
+        std::string current = openPriority.top().name;
+        openPriority.pop();
+
+        // This node has been visited by the shortest path, so it can be closed
+        closedPaths[current] = openPaths[current];
+        openPaths.erase(current);
 
         // Check if the node is the end node
-        if (next == end)
+        if (current == end)
             return getPath(closedPaths, end);
 
-        for (std::string s : cities[next].adj) {
-            if (closedPaths.count(s))
+        for (const std::string& neighbor : cities.at(current).adj) {
+            // If the path has already been visited, do nothing
+            if (closedPaths.count(neighbor))
                 continue;
 
-            // Calculate the actual distance from the start node
-            double distStart = distanceFromStart[next] + cities[s].distanceTo(cities[next]);
-            // If the node has not been opened, add it to all open lists
-            if (!openPaths.count(s)) {
-                openPaths[s] = next;
-                distanceFromStart[s] = distStart;
-                openPriority.push(s, distStart);
-            }
-            // If the node has been discovered, check if the new path is more optimal
-            else if (distStart < distanceFromStart[s]) {
-                openPaths[s] = next;
-                distanceFromStart[s] = distStart;
-                openPriority.remove(s);
-                openPriority.push(s, distStart);
-            }
+            // Calculate the path distance from the start node
+            double distStart = distanceFromStart[current] + cities.at(neighbor).distanceTo(cities.at(current));
+
+            // If a more optimal path has already been discovered, do nothing
+            if (openPaths.count(neighbor) &&  distanceFromStart[neighbor] <= distStart)
+                continue;
+
+            // Remove the less optimal path from the open queue
+            if (openPaths.count(neighbor))
+                pqRemoveCity(openPriority, neighbor);
+
+            // Add the new node to the open lists
+            openPaths[neighbor] = current;
+            distanceFromStart[neighbor] = distStart;
+            openPriority.push(CityQueueItem(neighbor, cities.at(neighbor), distStart + getHeuristic(neighbor, end)));
         }
     }
     return {};
 }
 
-City Map::getCity(std::string name) {
-    return cities[name];
+double Map::getHeuristic(std::string currentCityName, std::string endCityName) const {
+    return cities.at(currentCityName).distanceTo(cities.at(endCityName));
 }
 
-std::vector<std::string> Map::getPath(std::unordered_map<std::string, std::string> paths, std::string end) {
-    std::string next = end;
+void Map::pqRemoveCity(min_priority_queue<CityQueueItem>& q, std::string cityName) const {
+    min_priority_queue<CityQueueItem> temp;
+    q.swap(temp);
+
+    while (!temp.empty()) {
+        if (temp.top().name != cityName)
+            q.push(temp.top());
+        temp.pop();
+    }
+}
+
+std::vector<std::string> Map::getPath(std::unordered_map<std::string, std::string> paths, std::string end) const {
+    std::string current = end;
     std::vector<std::string> path;
 
-    while (!next.empty()) {
-        path.insert(path.begin(), next);
-        next = paths[next];
+    while (!current.empty()) {
+        path.insert(path.begin(), current);
+        current = paths[current];
     }
 
     return path;
 }
 
-bool Map::contains(std::string name) {
-    return cities.count(name) > 0;
+bool Map::contains(std::string cityName) const {
+    return cities.count(cityName) > 0;
 }
 
-/* My original attempt at the IDDFS
-std::vector<std::string> Map::iddfs(std::string start, std::string end) {
-    // Shortest path found
-    std::vector<std::string> path;
+City Map::getCity(std::string cityName) const {
+    if (!cities.count(cityName))
+        return City();
 
-    if (!cities.count(start) || !cities.count(end))
-        return path;
-
-    // All paths towards start node; nodes will be added as keys when they are visited
-    std::unordered_map<std::string, std::string> paths;
-    std::string next;
-
-    int level = 0;
-    while (level < INT_MAX) {
-        // Stack of not-yet-visited nodes
-        std::stack<std::string> stack;
-        
-        paths.clear();
-
-        // Add the start node to the stack and mark as visited
-        stack.push(start);
-        paths[start] = std::string();
-
-
-        // Loop until all paths have been searched
-        int currentDepth = -1;
-        while (!stack.empty()) {
-            currentDepth++;
-            // Choose next node to search
-            next = stack.top();
-            stack.pop();
-
-            // Discover all connected nodes
-            for (std::string s : cities[next].adj) {
-                // Mark each node as visited and add to stack
-                if (!paths.count(s)) {
-                    paths[s] = next; // Point node towards source
-                    if (currentDepth < level)
-                        stack.push(s);
-                }
-            }
-            if (currentDepth == level)
-                currentDepth--;
-
-            // Once the end is found, the shortest path has been found
-            if (paths.count(end)) break;
-        }
-        if (paths.count(end)) break;
-        level++;
-    }
-
-    if (!paths.count(end)) {
-        std::cout << "No path found." << std::endl;
-        return path;
-    }
-
-    // Backtrack through paths to find shortest route
-    next = end;
-    while (!next.empty()) {
-        path.insert(path.begin(), next);
-        next = paths[next];
-    }
-
-    return path;
+    return cities.at(cityName);
 }
-*/

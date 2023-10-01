@@ -30,13 +30,12 @@ int main()
         std::string start, end;
         std::cout << "Choose a start location: ";
         std::cin >> start;
-        std::cout << "Choose an end location: ";
-        std::cin >> end;
-
         if (!map.contains(start)) {
             std::cout << "City not found: " << start << std::endl;
             continue;
         }
+        std::cout << "Choose an end location: ";
+        std::cin >> end;
         if (!map.contains(end)) {
             std::cout << "City not found: " << end << std::endl;
             continue;
@@ -93,10 +92,10 @@ int main()
     }
 }
 
-double pathDistance(Map map, std::vector<std::string> cities) {
+double pathDistance(Map map, std::vector<std::string> path) {
     double total = 0;
-    for (int i = 0; i < cities.size() - 1; i++) {
-        total += map.getCity(cities[i]).distanceTo(map.getCity(cities[i + 1]));
+    for (int i = 0; i < path.size() - 1; i++) {
+        total += map.getCity(path[i]).distanceTo(map.getCity(path[i + 1]));
     }
 
     return total;
